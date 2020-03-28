@@ -13,24 +13,23 @@ import voluptuous as vol
 from datetime import timedelta
 
 from homeassistant.components.device_tracker import DOMAIN, PLATFORM_SCHEMA, DeviceScanner
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_SCAN_INTERVAL
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
 HTTP_HEADER_NO_CACHE = "no-cache"
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=30)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_SCAN_INTERVAL, timedelta(seconds=30)): cv.time_period,
     }
 )
-
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=30)
-
 
 def get_scanner(hass, config):
     """Validate the configuration and return a Tilgin Device Scanner."""
@@ -57,6 +56,7 @@ class TilginHG238xDeviceScanner(DeviceScanner):
         self.success_init = False
 
         _LOGGER.debug("Initialising Tilgin HG238x Device")
+        _LOGGER.debug(f"Scan interval is {MIN_TIME_BETWEEN_UPDATES.seconds} seconds")
         self.success_init = self._check_auth()
 
     def scan_devices(self):
@@ -100,7 +100,7 @@ class TilginHG238xDeviceScanner(DeviceScanner):
 
         self.session.post(self.url, data=login_data, allow_redirects=False)
 
-    @Throttle(MIN_TIME_BETWEEN_SCANS)
+    @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def _update_info(self):
         """Ensure the information from the Tilgin router is up to date.
         Return boolean if scanning successful.
