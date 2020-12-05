@@ -75,7 +75,7 @@ class TilginHG238xDeviceScanner(DeviceScanner):
         if "You are logged in as" in res.text:
             _LOGGER.debug("auth success")
             return True
-        _LOGGER.debug("auth failure")
+        _LOGGER.error("auth failure")
         return False
 
     def _authenticate(self):
@@ -114,22 +114,24 @@ class TilginHG238xDeviceScanner(DeviceScanner):
             self._authenticate()
             res = self.session.get(self.url + "/status/lan_clients/")
             if res.status_code == 403:
+                _LOGGER.error("lan_clients returned a 403")
                 return False
 
         soup = BeautifulSoup(res.content, "html.parser")
-        clients_html = soup.find("table", {"class": "control"})
-        devices = clients_html.findAll("tr")[1:]
-
+        multi_clients_html = soup.findAll("table", {"class": "control"})
         self.last_results = {}
 
-        for device in devices:
-            device = device.findAll("td")
-            if "Active" not in device[0].text:
-                continue
-            device_mac = device[2].text.strip(u"\u200e")
-            device_name = device[1].text
-            _LOGGER.debug("%s: %s", device_name, device_mac)
-            self.last_results[device_mac] = device_name
+        for clients_html in multi_clients_html:
+            devices = clients_html.findAll("tr")[1:]
 
-        _LOGGER.debug("Found %d devices", len(self.last_results))
+            for device in devices:
+                device = device.findAll("td")
+                if "Active" not in device[0].text:
+                    continue
+                device_mac = device[2].text.strip(u"\u200e")
+                device_name = device[1].text
+                _LOGGER.debug("%s: %s", device_name, device_mac)
+                self.last_results[device_mac] = device_name
+
+            _LOGGER.debug("Found %d devices", len(self.last_results))
         return True
